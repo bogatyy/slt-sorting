@@ -71,6 +71,21 @@ Where it does separate them, the brittle counting sorter is the *more* degenerat
 not by itself a generalisation guarantee, and the ranking of two implementations can depend on the
 scale at which the geometry is probed.
 
+**Extended lengths** (added after the GPU run; `extended_lengths.py`, run on CPU from the committed
+checkpoints; `figures/ood_length_extended.png`, `results/ood_lengths_extended*.csv`):
+
+| | n=20 | n=32 | n=64 | n=128 |
+|---|---|---|---|---|
+| MIN, exact-match | 1.00 | 0.30 | 0.00 | 0.00 |
+| MIN, per-token (teacher forced) | 1.00 | 0.97 | 0.86 | 0.83 |
+| HIST, per-token (teacher forced) | 0.71 | 0.58 | 0.50 | 0.47 |
+| NONE, per-token (teacher forced) | 0.99 | 0.91 | 0.83 | 0.80 |
+
+The min-tracker generalises far better than the counting sorter but not to arbitrary length.  All of its
+errors on long inputs occur at steps where the correct digit *repeats* the previous one (the model must
+decide "is another copy left?"), none where the sorted output advances: the availability comparison is
+done by softmax attention, whose precision shrinks as the counts grow with n.
+
 **Ablations** (`figures/ablations.png`): with learned position embeddings the counting sorter fails
 immediately past the training range (4% at n = 11) while the min-tracker still generalises (96% at
 n = 20); without the state bottleneck, "supervising" the histogram with a jointly trained probe leaves the
