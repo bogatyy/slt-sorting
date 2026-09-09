@@ -1,4 +1,4 @@
-## 11. Reproduction
+## 12. Reproduction
 
 * Everything in this notebook is self-contained; `slt_sorting_lib.py` in the repository is the same
   code.  `SLT_FAST=1 jupyter nbconvert --execute slt_sorting.ipynb` runs a reduced version on CPU in a
