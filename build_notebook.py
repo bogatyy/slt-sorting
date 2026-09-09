@@ -210,6 +210,16 @@ df_llc.to_csv("results/llc.csv")
 df_llc
 '''))
 cells.append(code(r'''
+# Robustness: the same comparison at a second sampler setting (colder chains, smaller steps).
+LLC_HP2 = dict(eps=1e-6, gamma=1e4, nbeta=100.0, batch=256)
+LLC_RUN2 = dict(n_chains=2, n_steps=400, burnin=200) if FAST else dict(n_chains=4, n_steps=2500, burnin=1250)
+llc2 = {name: estimate_llc(m, data, seed=9, **LLC_HP2, **LLC_RUN2) for name, m in models.items()}
+df_llc2 = pd.DataFrame({name: {"LLC (setting 2)": r["llc"], "chain std": r["llc_std"], "trace mean after burn-in": r["traces"][:, LLC_RUN2["burnin"]:].mean(), "L_n(w*)": r["L0"]}
+                        for name, r in llc2.items()}).T
+df_llc2.to_csv("results/llc_setting2.csv")
+df_llc2
+'''))
+cells.append(code(r'''
 fig, axes = plt.subplots(1, 2, figsize=(11, 3.6))
 for name, r in llc.items():
     for c in range(r["traces"].shape[0]):
@@ -240,6 +250,43 @@ piv = df_rllc["rLLC"].unstack(0)
 piv.plot.bar(ax=ax, color=["C1", "C0", "C2"][:len(piv.columns)] if list(piv.columns) == ["HIST", "MIN", "NONE"] else None, rot=0)
 ax.set_ylabel("weight-refined LLC"); ax.set_title("where does the complexity sit?")
 plt.tight_layout(); plt.savefig("figures/refined_llc.png"); plt.show()
+'''))
+cells.append(md(open("nb_text/09b_seeds.md").read()))
+cells.append(code(r'''
+# Seeds: train two more models of each kind (different initialisation and data stream, everything else
+# identical) and repeat the length-generalisation, prefix and LLC measurements.
+SEEDS = [1] if FAST else [1, 2]
+seed_models = {}
+for seed in SEEDS:
+    for name, mode in MODES.items():
+        print(f"===== training {name} seed {seed} =====")
+        seed_models[(name, seed)] = train_model(mode, CFG, device=DEVICE, verbose=False, **{**TRAIN, "seed": seed})[0]
+all_models = {**{(name, TRAIN["seed"]): m for name, m in models.items()}, **seed_models}
+seed_rows, seed_ood = [], {}
+for (name, seed), m in all_models.items():
+    r_llc = llc[name] if seed == TRAIN["seed"] else estimate_llc(m, data, seed=7, **LLC_HP, **{**LLC_RUN, "n_chains": 4})
+    oo = ood[name] if seed == TRAIN["seed"] else evaluate_lengths(m, OOD_LENGTHS, B=1024, device=DEVICE)
+    pp = ps[name] if seed == TRAIN["seed"] else prefix_sensitivity(m, n=10, B=2048, device=DEVICE)
+    seed_ood[(name, seed)] = oo
+    seed_rows.append({"model": name, "seed": seed, "L_n(w*)": r_llc["L0"], "LLC": r_llc["llc"], "LLC chain std": r_llc["llc_std"],
+                      **{f"exact@n={n}": next(x["exact"] for x in oo if x["n"] == n) for n in [10, 12, 14, 16, 20, 24, 32]},
+                      "follows prefix": pp["follows_prefix(MIN-like)"], "ignores prefix": pp["ignores_prefix(HIST-like)"]})
+    print(f"{name:5s} seed {seed}: LLC = {r_llc['llc']:.3f} +- {r_llc['llc_std']:.3f}  exact@20 = {seed_rows[-1]['exact@n=20']:.3f}")
+df_seeds = pd.DataFrame(seed_rows).set_index(["model", "seed"]).sort_index(); df_seeds.to_csv("results/seeds.csv")
+df_seeds
+'''))
+cells.append(code(r'''
+fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
+colors = {"MIN": "C0", "HIST": "C1", "NONE": "C2"}
+for (name, seed), oo in seed_ood.items():
+    axes[0].plot([r["n"] for r in oo], [r["exact"] for r in oo], "o-", color=colors[name], alpha=0.6, lw=1, label=name if seed == TRAIN["seed"] else None)
+axes[0].axvspan(TRAIN["n_range"][0] - 0.5, TRAIN["n_range"][1] + 0.5, color="green", alpha=0.08)
+axes[0].set_xlabel("input length n"); axes[0].set_ylabel("exact-match accuracy"); axes[0].set_title(f"length generalisation, {1 + len(SEEDS)} seeds per model"); axes[0].legend()
+for i, name in enumerate(MODES):
+    sub = df_seeds.loc[name]
+    axes[1].errorbar([i + 0.15 * (k - 1) for k in range(len(sub))], sub["LLC"], yerr=sub["LLC chain std"], fmt="o", color=colors[name], capsize=3)
+axes[1].set_xticks(range(len(MODES))); axes[1].set_xticklabels(list(MODES)); axes[1].set_ylabel("LLC (setting 1)"); axes[1].set_title("LLC per model and seed"); axes[1].set_yscale("log")
+plt.tight_layout(); plt.savefig("figures/seeds.png"); plt.show()
 '''))
 cells.append(md(open("nb_text/10_ablations.md").read()))
 cells.append(code(r'''
@@ -296,6 +343,8 @@ cells.append(code(r'''
 summary = {"train": train_stats, "ood_length": {k: v for k, v in ood.items()}, "prefix_sensitivity": ps,
            "probes": {f"{k[0]}/{k[1]}": v for k, v in probe_rows.items()},
            "llc": {k: {kk: vv for kk, vv in v.items() if kk != "traces"} for k, v in llc.items()},
+           "llc_setting2": {k: {kk: vv for kk, vv in v.items() if kk != "traces"} for k, v in llc2.items()},
+           "seeds": seed_rows,
            "state_fidelity": fid, "ood_duplicates": dup_rows, "refined_llc": {f"{k[0]}/{k[1]}": v for k, v in rllc.items()}, "ablation_pe": {"ood": ood_pe, "prefix": ps_pe, "fidelity": fid_pe},
            "ablation_no_bottleneck": {"ood": ood_nb, "prefix": ps_nb, "probes": probes_nb},
            "config": CFG.__dict__, "train_hp": TRAIN, "llc_hp": LLC_HP, "llc_run": LLC_RUN, "device": DEVICE}
