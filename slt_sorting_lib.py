@@ -493,8 +493,9 @@ def prefix_sensitivity(model, n=10, B=2048, seed=7, device=DEVICE):
     prediction.  Reports the fraction of cases in which the model (a) emits what the MIN algorithm
     would emit given the corrupted prefix, (b) emits the true y_t (what counting sort emits, since
     it never looks at the prefix), (c) anything else.  v' is chosen so that the two answers differ
-    and so that some digit >= v' is still available (no fall-back ambiguity); v' is always a digit that
-    occurs in the input, so the corrupted prefix is a plausible one."""
+    and so that some digit >= v' is still available (no fall-back ambiguity).  v' is always a digit that
+    occurs in the input and is >= the digit before it, so the corrupted prefix is still a sorted,
+    plausible-looking prefix -- it is just inconsistent with the input multiset."""
     g = torch.Generator(device=device).manual_seed(seed)
     x = sample_inputs(B, n, device=device, generator=g)
     y = x.sort(1).values
@@ -513,7 +514,8 @@ def prefix_sensitivity(model, n=10, B=2048, seed=7, device=DEVICE):
         emitted = before + F.one_hot(vprime, N_DIGITS)
         avail = (h - emitted) > 0
         cand = avail & (digits[None] >= vp)
-        ok = cand.any(1) & (vprime != y.gather(1, (t - 1)[:, None]).squeeze(1)) & (h[:, vp] > 0)
+        prev = torch.where(t >= 2, y.gather(1, (t - 2).clamp(min=0)[:, None]).squeeze(1), torch.full_like(t, -1))
+        ok = cand.any(1) & (vprime != y.gather(1, (t - 1)[:, None]).squeeze(1)) & (h[:, vp] > 0) & (vprime >= prev)
         pred = torch.where(cand, digits[None], torch.full_like(cand, 99, dtype=torch.long)).min(1).values
         ok = ok & (pred != true_next) & ~found
         best_v = torch.where(ok, vprime, best_v); best_pred = torch.where(ok, pred, best_pred); found |= ok
