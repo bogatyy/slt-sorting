@@ -14,8 +14,9 @@ min-tracker keeps sorting (100% at n = 16, 87% at n = 24) while the counting sor
 positions of the training range (3% at n = 16).  Three independent tests — corrupted-prefix behaviour,
 what each bottleneck holds, attention patterns — confirm that the two networks compute different things,
 and a third model trained with no state supervision turns out to be a min-tracker: SGD's default.
-Finally we estimate the local learning coefficient (LLC) of each solution with SGLD.  Geometry does
-separate the two equal-loss solutions (by a factor of two, and the weight-refined LLC says the
-min-tracker's stiffness lives in its attention while the counting sorter's lives in its read-out) — but the
-brittle counting sorter is the *more* degenerate of the two, and SGD's own solution is far more
-degenerate than either.
+Finally we estimate the local learning coefficient (LLC) of each solution with SGLD, for three seeds per
+model and two sampler settings.  SGD's own solution is 20–70× more degenerate than either scaffolded one.
+Between the two equal-loss solutions, geometry separates them by a factor of two at the setting that
+probes the sharpest directions (consistently across seeds; the weight-refined LLC puts the min-tracker's
+stiffness in its attention look-ups and the counting sorter's in its read-out thresholds) — with the
+brittle counting sorter as the *more* degenerate one — and does not separate them at a colder setting.

@@ -34,27 +34,32 @@
    sort is the algorithm that had to be scaffolded in.
 
 **What the LLC says.**  With one sampler setting for all models (nβ = 10, γ = 10⁴, ε = 10⁻⁵; chains agree
-to within ~10%, the nβ = 0 control collapses to ~0, and a second setting gives the same ordering):
+to within ~10%, and the nβ = 0 control collapses to ~0), three seeds per model (Section 9b), and a colder
+second setting (nβ = 100, ε = 10⁻⁶) as a check:
 
-* `NONE` is *far* more degenerate than either scaffolded solution — λ̂ ≈ 0.015 against ≈ 1.2 (`MIN`) and
-  ≈ 0.6 (`HIST`).  Whatever SGD finds on its own sits in a much flatter region than what supervised-state
-  training produces, even when the algorithm is the same as `MIN`'s.  (Part of this is procedure: `NONE`
-  spent all of training being annealed by SGD on the sorting loss, `MIN`/`HIST` only the last 20% at a
-  small learning rate; SGD's implicit drift towards flat regions is itself one of the phenomena the LLC
+* `NONE` is *far* more degenerate than either scaffolded solution — λ̂ ≈ 0.015–0.05 against ≈ 0.9–1.2
+  (`MIN`) and ≈ 0.6 (`HIST`) at the first setting, and ≈ 0.05 against ≈ 1.1–1.2 at the second; this holds
+  for every seed and both settings.  Whatever SGD finds on its own sits in a much flatter region than what
+  supervised-state training produces, even though its algorithm is `MIN`'s.  (Part of this is procedure:
+  `NONE` spent all of training being annealed by SGD on the sorting loss, `MIN`/`HIST` only the last 20% at
+  a small learning rate; SGD's implicit drift towards flat regions is itself one of the phenomena the LLC
   was introduced to measure — Lau et al.'s Figure 1.)
-* Between the two solutions with equal loss the LLC *does* differ, by a factor of two, well outside the
-  chain-to-chain spread — so geometry separates two solutions that the loss cannot — and the
-  weight-refined LLC says where: `MIN`'s stiffness is in its **attention** weights (rLLC ≈ 0.8 of the total
-  1.2 — sharp content look-ups are fragile), `HIST`'s attention is almost free (≈ 0.03 — uniform averaging
-  is robust to weight perturbations) and its stiffness sits in the **state/read-out** thresholds.
-* But the *direction* of the difference is the opposite of "simpler generalises better": at this scale the
-  brittle counting sorter is the more degenerate of the two scaffolded solutions.  Read through Eq. (3)
-  of *You Are What You Eat*, nΔℓ ≈ 16380 × 2.3·10⁻⁶ ≈ 0.04 nats is negligible next to Δλ·log n ≈ 0.6 × 9.7 ≈ 5
-  nats, so a Bayesian posterior at this temperature would prefer `HIST` to `MIN` by roughly e⁵ — and `NONE`
-  to both by far more.  In our pilot checkpoints after a quarter of the training the ordering of `MIN` and
-  `HIST` was reversed, and Section 9b checks it across seeds; the honest summary is that the LLC ranks
-  *implementations*, and the ranking of the two scaffolded implementations is not something one should
-  read a generalisation guarantee from.
+* Between the two solutions with equal loss the picture is *scale-dependent*.  At the first setting the
+  LLC separates them by a factor of two, consistently across seeds (`MIN` 1.18, 1.22, 0.91 vs `HIST` 0.62,
+  0.62, 0.61, chain spreads ≈ 0.02–0.10), and the weight-refined LLC says where: `MIN`'s stiffness is in its
+  **attention** weights (rLLC ≈ 0.8 of the total 1.2 — sharp content look-ups are fragile), `HIST`'s
+  attention is almost free (≈ 0.03 — uniform averaging is robust) and its stiffness sits in the
+  **state/read-out** thresholds (≈ 0.16).  At the colder setting, which counts directions of lower
+  curvature as well, the two are indistinguishable (1.11 ± 0.03 vs 1.18 ± 0.16).  So geometry does
+  separate the two equal-loss solutions, but the separation is a statement about their *stiffest few
+  directions*, not about the volume of their basins at every scale.
+* And where it separates them, the *direction* is the opposite of "simpler generalises better": at the
+  first setting the brittle counting sorter is the more degenerate of the two.  Read through Eq. (3) of
+  *You Are What You Eat*, nΔℓ ≈ 16380 × 2.3·10⁻⁶ ≈ 0.04 nats is negligible next to Δλ·log n ≈ 0.6 × 9.7 ≈ 5
+  nats, so a posterior at that temperature would prefer `HIST` to `MIN` by roughly e⁵ (and `NONE` to both by
+  far more); at the second setting the odds between `MIN` and `HIST` are even.  The honest summary is that
+  the LLC ranks *implementations* at a chosen scale, and neither the ranking of the two scaffolded
+  implementations nor its sign is something one should read a generalisation guarantee from.
 
 **Relation to the safety argument.**  The alignment version of this story replaces "sort longer strings"
 by "behave well off the training distribution" and "which solution SGD finds" by "which solution the
@@ -67,10 +72,11 @@ one would need to predict, before the shift, which of these two a given training
 
 **Limitations and next steps.**  (i) The scaffold is strong (an explicit bottleneck plus a teacher-forced
 read-out); weaker elicitation — attention supervision, or data engineering alone — would be closer to
-how real training shapes algorithms.  (ii) Three seeds per model (Section 9b) is enough to see whether
-the orderings are stable, not to estimate their distribution.  (iii) The LLC is estimated at one
-localisation scale chosen by the standard diagnostics; because the minima are extremely sharp, the
-estimate is a scale-dependent count of stiff directions rather than the asymptotic learning coefficient.
-Data-refined LLCs (e.g. restricted to long sequences) and susceptibilities would be the natural
+how real training shapes algorithms.  (ii) Three seeds per model (Section 9b) is enough to see that the
+orderings are stable across seeds, not to estimate their distribution.  (iii) The LLC is estimated at two
+localisation scales chosen by the standard diagnostics; because the minima are extremely sharp, the
+estimate is a scale-dependent count of stiff directions rather than the asymptotic learning coefficient,
+and — as the two settings show — conclusions about *which* of two solutions is simpler can change with the
+scale.  Data-refined LLCs (e.g. restricted to long sequences) and susceptibilities would be the natural
 next tools.  (iv) The natural developmental question — does the counting sorter's body→read-out hand-off
 show up as a phase transition in λ̂(t) over training? — is a small extension of this notebook.
