@@ -5,7 +5,7 @@ Two small decoder-only transformers are trained on exactly the same sorting task
 (essentially) the same training loss, but are steered -- via auxiliary supervision of an
 intermediate "state" -- into two different algorithms:
 
-  * MIN   ("track the current minimum"): at each output step keep the last emitted value v
+  * PNTR  ("pointer to the current minimum"): at each output step keep the last emitted value v
           and emit the smallest *still-available* input digit >= v.  All quantities are
           comparisons ("is digit d still available?"), so nothing depends on the absolute
           length of the sequence.
@@ -65,7 +65,7 @@ def histogram(x: torch.Tensor):
 
 def availability(x: torch.Tensor, y: torch.Tensor):
     """availability[b, t, d] = (count of d in x_b) > (count of d among y_b[:t]).
-    This is the state of the MIN algorithm at output step t (0-indexed): which digits are
+    This is the state of the PNTR algorithm at output step t (0-indexed): which digits are
     still left to emit.  y_t == min{d : availability[t, d]} always holds."""
     h = F.one_hot(x, N_DIGITS).sum(1)                       # (B, 10)
     yo = F.one_hot(y, N_DIGITS)                             # (B, n, 10)
@@ -82,12 +82,12 @@ def counting_sort_state(x: torch.Tensor):
 
 def state_targets(x: torch.Tensor, y: torch.Tensor, mode: str):
     """The 11-dim supervised state at each of the n decision points, (B, n, 11), or None.
-      MIN : [availability bits (10) | v]  with v = previously emitted digit (-1 at the separator)
+      PNTR : [availability bits (10) | v]  with v = previously emitted digit (-1 at the separator)
       HIST: [cumulative counts C(d) (10) | t] with C(d) = #inputs <= d, t = 0-indexed output index
     Both states carry 10 per-digit numbers plus one 'where am I' number: in *value* space for the
-    min-tracker (the current minimum v), in *index* space for counting sort (the output index t)."""
+    pointer-tracker (the current minimum v), in *index* space for counting sort (the output index t)."""
     B, n = x.shape
-    if mode == "min":
+    if mode == "pntr":
         a = availability(x, y).float()
         v = torch.cat([torch.full((B, 1), -1.0, device=x.device), y[:, :-1].float()], 1)
         return torch.cat([a, v[:, :, None]], -1)
@@ -113,7 +113,7 @@ class Config:
     pos: str = "learned"     # 'learned' (zero-init absolute) | 'none' (NoPE) | 'sinusoidal'
     probe_layer: int = 1     # residual stream after this many blocks feeds the (non-bottleneck) probes
     bottleneck: bool = True  # route the sorting decision through an explicit K-dim "state" vector
-    state_dim: int = 11      # 10 per-digit slots + 1 "where am I" slot (v for MIN, t for HIST)
+    state_dim: int = 11      # 10 per-digit slots + 1 "where am I" slot (v for PNTR, t for HIST)
     readout_hidden: int = 64
 
 
@@ -237,7 +237,7 @@ def forward_sort(model, x, return_attn=False):
 
 
 def compute_losses(model, x, mode: str, aux_weight: float = 1.0):
-    """mode in {'min', 'hist', 'none'}.  Returns (total, dict of scalars)."""
+    """mode in {'pntr', 'hist', 'none'}.  Returns (total, dict of scalars)."""
     B, n = x.shape
     out, y = forward_sort(model, x)
     logits = out["logits"][:, n:, :]                       # (B, n, 10)
@@ -252,7 +252,7 @@ def compute_losses(model, x, mode: str, aux_weight: float = 1.0):
             state = out["state"][:, n:, :]
             aux = F.mse_loss(state, tgt)
             stats["aux_state_mse"] = aux.item()
-            if mode == "min":
+            if mode == "pntr":
                 stats["avail_bit_acc"] = ((state[..., :10] > 0.5) == (tgt[..., :10] > 0.5)).float().mean().item()
             else:
                 stats["count_acc"] = (state[..., :10].round() == tgt[..., :10]).float().mean().item()
@@ -264,7 +264,7 @@ def compute_losses(model, x, mode: str, aux_weight: float = 1.0):
         l_t = F.mse_loss(pt, (t / 10.0)[None, :].expand_as(pt))
         aux = l_h + l_t
         stats.update({"aux_hist": l_h.item(), "aux_idx": l_t.item()})
-    elif mode == "min":
+    elif mode == "pntr":
         a = availability(x, y).float()
         pa = model.probe_avail(resid)
         l_a = F.binary_cross_entropy_with_logits(pa, a)
@@ -457,10 +457,10 @@ def train_loss_estimate(model, n_range=(4, 10), B=2048, seed=999, device=DEVICE)
 @torch.no_grad()
 def state_fidelity(model, n_range=(4, 10), B=1024, seed=321, device=DEVICE):
     """How well does the bottleneck state of a trained model match *each* algorithm's state?
-    Returns per-slot errors for the MIN and HIST targets (lower = closer)."""
+    Returns per-slot errors for the PNTR and HIST targets (lower = closer)."""
     g = torch.Generator(device=device).manual_seed(seed)
     res = {}
-    for mode in ["min", "hist"]:
+    for mode in ["pntr", "hist"]:
         errs, bit_acc, cnt_acc = [], [], []
         for n in range(n_range[0], n_range[1] + 1):
             x = sample_inputs(B, n, device=device, generator=g)
@@ -468,12 +468,12 @@ def state_fidelity(model, n_range=(4, 10), B=1024, seed=321, device=DEVICE):
             s = out["state"][:, n:, :]
             tgt = state_targets(x, y, mode)
             errs.append(F.mse_loss(s, tgt).item())
-            if mode == "min":
+            if mode == "pntr":
                 bit_acc.append(((s[..., :10] > 0.5) == (tgt[..., :10] > 0.5)).float().mean().item())
             else:
                 cnt_acc.append((s[..., :10].round() == tgt[..., :10]).float().mean().item())
         res[f"mse_vs_{mode.upper()}_state"] = float(np.mean(errs))
-        if mode == "min":
+        if mode == "pntr":
             res["avail_bit_acc"] = float(np.mean(bit_acc))
         else:
             res["count_acc"] = float(np.mean(cnt_acc))
@@ -481,16 +481,16 @@ def state_fidelity(model, n_range=(4, 10), B=1024, seed=321, device=DEVICE):
 
 
 # ----------------------------------------------------------------------------------------
-# Mechanistic test 1: does the model condition on the *previous outputs* (MIN) or only on the
+# Mechanistic test 1: does the model condition on the *previous outputs* (PNTR) or only on the
 # input histogram and the output index (HIST)?  We teacher-force a corrupted prefix: the last
-# emitted token y_{t-1} is replaced by a different digit v'.  A min-tracking model follows the
+# emitted token y_{t-1} is replaced by a different digit v'.  A pointer-tracking model follows the
 # corrupted value (it emits the smallest available digit >= v'); a counting-sort model ignores
 # the prefix and still emits the true y_t.
 # ----------------------------------------------------------------------------------------
 @torch.no_grad()
 def prefix_sensitivity(model, n=10, B=2048, seed=7, device=DEVICE):
     """Teacher-force a prefix whose last emitted digit y_{t-1} is replaced by v' and read the next
-    prediction.  Reports the fraction of cases in which the model (a) emits what the MIN algorithm
+    prediction.  Reports the fraction of cases in which the model (a) emits what the PNTR algorithm
     would emit given the corrupted prefix, (b) emits the true y_t (what counting sort emits, since
     it never looks at the prefix), (c) anything else.  v' is chosen so that the two answers differ
     and so that some digit >= v' is still available (no fall-back ambiguity).  v' is always a digit that
@@ -525,7 +525,7 @@ def prefix_sensitivity(model, n=10, B=2048, seed=7, device=DEVICE):
     toks = torch.cat([x, torch.full((x.shape[0], 1), SEP, dtype=torch.long, device=device), ycor + OUT0], 1)[:, :2 * n]
     pred = model(toks)["logits"][torch.arange(x.shape[0]), n + t].argmax(-1)
     m = x.shape[0]
-    return {"follows_prefix(MIN-like)": (pred == best_pred).float().mean().item(),
+    return {"follows_prefix(PNTR-like)": (pred == best_pred).float().mean().item(),
             "ignores_prefix(HIST-like)": (pred == true_next).float().mean().item(),
             "other": ((pred != best_pred) & (pred != true_next)).float().mean().item(), "n_cases": m}
 

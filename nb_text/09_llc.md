@@ -17,7 +17,7 @@ the logit margins are enormous, and a random perturbation of 0.003 per weight al
   picture, rather than the asymptotic learning coefficient — but it is the same functional of the local
   geometry for every model, which is what the comparison needs.
 
-The cells below run a small sweep on the `MIN` model, then use one setting for all models, then an
+The cells below run a small sweep on the `PNTR` model, then use one setting for all models, then an
 `nβ = 0` control (no loss-gradient term: the chains only feel the noise and the localisation; if the
 estimate does not collapse, the "signal" was never coming from the loss landscape), and finally the
 *weight-refined* LLC of Wang et al. (2024) — the same estimate with only one group of parameters free —

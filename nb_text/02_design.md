@@ -9,7 +9,7 @@ is population loss on the training distribution.
 
 **Two algorithms that both solve the task.**
 
-| | MIN — "track the current minimum" | HIST — "counting sort" |
+| | PNTR — "a pointer to the current minimum" | HIST — "counting sort" |
 |---|---|---|
 | state at output step *t* | which digits are *still available* (10 bits) and the current value `v = y_{t-1}` | the histogram of absolute counts of the 10 digits, and the output index `t` |
 | decision | emit the smallest available digit ≥ `v` | emit the digit `d` with `C(d-1) ≤ t < C(d)`, `C` = cumulative counts |
@@ -17,7 +17,7 @@ is population loss on the training distribution.
 | scale | only comparisons ("is d still available?", "is d ≥ v?") — nothing depends on `n` | absolute magnitudes (counts, index) whose range is bounded by the training lengths |
 
 Both are 100% correct on the training distribution, so the sorting loss cannot distinguish them.
-They differ in *what else they do*: the min-tracker keeps working for longer inputs, the counting
+They differ in *what else they do*: the pointer-tracker keeps working for longer inputs, the counting
 sorter has never seen a count above ~5 or an index above 9 and has no reason to handle them.
 
 **Architecture (identical for every model).**  A 2-layer, 4-head, d=128 GPT-style decoder with **no
@@ -32,7 +32,7 @@ tracking the minimum.)
 
 **Supervised-state training.**  The three models differ *only* in what `s` is asked to be:
 
-* `MIN`  : `s = [ availability bits (10) | v ]`  (v = the last emitted digit, −1 at the separator),
+* `PNTR`  : `s = [ availability bits (10) | v ]`  (v = the last emitted digit, −1 at the separator),
 * `HIST` : `s = [ cumulative counts C(0..9) (10) | t ]`  (C(d) = number of inputs ≤ d, t = output index),
 * `NONE` : nothing — whatever SGD finds on its own.
 
@@ -48,7 +48,7 @@ the two-phase scheme.)
 **Measurements.**  (1) training loss / in-distribution accuracy; (2) free-running accuracy for lengths
 `n = 4 … 32`; (3) accuracy at `n = 10` with many duplicates (small alphabets: counts far above the
 training range while positions stay in range); (4) mechanistic tests — does the next prediction follow a
-*corrupted* previous output (min-tracker) or ignore it (counting sort)?  which algorithm's state is
+*corrupted* previous output (pointer-tracker) or ignore it (counting sort)?  which algorithm's state is
 linearly decodable?  what do the attention heads attend to?; (5) the local learning coefficient of each
 solution, estimated with SGLD on a fixed sample from the training distribution with identical sampler
 settings for every model.

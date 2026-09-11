@@ -4,7 +4,7 @@ import argparse, json, time, torch
 import slt_sorting_lib as L
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--mode", default="min"); ap.add_argument("--steps", type=int, default=2000)
+ap.add_argument("--mode", default="pntr"); ap.add_argument("--steps", type=int, default=2000)
 ap.add_argument("--pos", default="learned"); ap.add_argument("--d", type=int, default=128)
 ap.add_argument("--layers", type=int, default=2); ap.add_argument("--heads", type=int, default=4)
 ap.add_argument("--probe_layer", type=int, default=1); ap.add_argument("--state_frac", type=float, default=0.7)

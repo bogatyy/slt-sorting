@@ -12,7 +12,7 @@ handle on telling them apart *before* the distribution shift.
 
 **Two algorithms, elicited by supervising an explicit 11-number "state" in the same architecture:**
 
-| | `MIN` — track the current minimum | `HIST` — counting sort |
+| | `PNTR` — track the current minimum | `HIST` — counting sort |
 |---|---|---|
 | state | which digits are still available (10 bits) + the current value `v` | cumulative counts `C(d)` (10 numbers) + the output index `t` |
 | decision | smallest available digit ≥ `v` | the digit `d` with `C(d-1) ≤ t < C(d)` |
@@ -26,7 +26,7 @@ handle on telling them apart *before* the distribution shift.
 
 | model | CE / token | NLL / sequence | exact-match (teacher forced) |
 |---|---|---|---|
-| MIN | 1.3e-09 | 5.4e-09 | 1.000 |
+| PNTR | 1.3e-09 | 5.4e-09 | 1.000 |
 | HIST | 3.2e-07 | 2.3e-06 | 1.000 |
 | NONE | 1.9e-10 | 1.6e-09 | 1.000 |
 
@@ -35,23 +35,23 @@ length (training lengths 4–10; `figures/ood_length.png`):
 
 | model | n=10 | n=12 | n=13 | n=14 | n=16 | n=18 | n=20 | n=24 | n=28 | n=32 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| MIN | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 | 0.98 | 0.87 | 0.59 | 0.27 |
+| PNTR | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 | 0.98 | 0.87 | 0.59 | 0.27 |
 | HIST | 1.00 | 1.00 | 0.95 | 0.70 | 0.03 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
 | NONE | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.95 | 0.83 | 0.31 | 0.06 | 0.00 |
 
 **Mechanistic evidence that they differ** (`figures/attention.png`):
 
-| test | MIN | HIST | NONE |
+| test | PNTR | HIST | NONE |
 |---|---|---|---|
-| corrupted prefix: follows it (min-tracker) / ignores it (counting sort) | 0.99 / 0.00 | 0.01 / 0.83 | 0.72 / 0.21 |
+| corrupted prefix: follows it (pointer-tracker) / ignores it (counting sort) | 0.99 / 0.00 | 0.01 / 0.83 | 0.72 / 0.21 |
 | bottleneck holds availability bits (bit acc) / cumulative counts (count acc) | 1.00 / 0.10 | 0.40 / 0.59 | 0.45 / 0.07 |
-| attention | sharp content look-ups of particular digits | uniform over inputs + reads the separator | like MIN |
+| attention | sharp content look-ups of particular digits | uniform over inputs + reads the separator | like PNTR |
 
 **Local learning coefficient** (SGLD with identical settings for all models; setting 1: nβ = 10, γ = 10⁴,
 ε = 10⁻⁵, 6 chains × 2000 steps; setting 2: nβ = 100, γ = 10⁴, ε = 10⁻⁶, 4 chains × 2500 steps;
 `figures/llc.png`, `figures/refined_llc.png`, `figures/seeds.png`):
 
-| | MIN | HIST | NONE |
+| | PNTR | HIST | NONE |
 |---|---|---|---|
 | LLC, setting 1 (± chain std) | 1.18 ± 0.10 | 0.62 ± 0.06 | 0.015 ± 0.004 |
 | LLC, setting 1, two more seeds | 1.22 ± 0.04, 0.91 ± 0.06 | 0.62 ± 0.07, 0.61 ± 0.02 | 0.037 ± 0.005, 0.046 ± 0.026 |
@@ -59,13 +59,13 @@ length (training lengths 4–10; `figures/ood_length.png`):
 | weight-refined LLC (setting 1): attention / MLPs / embeddings / state+read-out | 0.84 / 0.00 / 0.00 / 0.18 | 0.03 / 0.00 / 0.00 / 0.16 | 0.02 / 0.00 / 0.00 / 0.00 |
 
 Across seeds, the two extra seeds of each model reproduce the length-generalisation and prefix results
-(MIN: 88–98% exact at n = 20, follows the prefix 97–100%; HIST: 0% at n = 20, ignores the prefix 77–88%;
+(PNTR: 88–98% exact at n = 20, follows the prefix 97–100%; HIST: 0% at n = 20, ignores the prefix 77–88%;
 NONE: 83–90% at n = 20, follows 72–74%).
 
-So: the solution SGD finds on its own (a min-tracker) is 20–70× more degenerate than either scaffolded
+So: the solution SGD finds on its own (a pointer-tracker) is 20–70× more degenerate than either scaffolded
 solution, at both settings and all seeds.  Between the two equal-loss solutions, geometry separates them
 by a factor of two at the setting that probes only the sharpest directions — consistently across seeds,
-and the refined LLC says *where*: the min-tracker's stiffness is in its attention look-ups, the counting
+and the refined LLC says *where*: the pointer-tracker's stiffness is in its attention look-ups, the counting
 sorter's in its read-out thresholds — but not at the colder setting, where they are indistinguishable.
 Where it does separate them, the brittle counting sorter is the *more* degenerate one: "lower LLC" is
 not by itself a generalisation guarantee, and the ranking of two implementations can depend on the
@@ -76,20 +76,20 @@ checkpoints; `figures/ood_length_extended.png`, `results/ood_lengths_extended*.c
 
 | | n=20 | n=32 | n=64 | n=128 |
 |---|---|---|---|---|
-| MIN, exact-match | 1.00 | 0.30 | 0.00 | 0.00 |
-| MIN, per-token (teacher forced) | 1.00 | 0.97 | 0.86 | 0.83 |
+| PNTR, exact-match | 1.00 | 0.30 | 0.00 | 0.00 |
+| PNTR, per-token (teacher forced) | 1.00 | 0.97 | 0.86 | 0.83 |
 | HIST, per-token (teacher forced) | 0.71 | 0.58 | 0.50 | 0.47 |
 | NONE, per-token (teacher forced) | 0.99 | 0.91 | 0.83 | 0.80 |
 
-The min-tracker generalises far better than the counting sorter but not to arbitrary length.  All of its
+The pointer-tracker generalises far better than the counting sorter but not to arbitrary length.  All of its
 errors on long inputs occur at steps where the correct digit *repeats* the previous one (the model must
 decide "is another copy left?"), none where the sorted output advances: the availability comparison is
 done by softmax attention, whose precision shrinks as the counts grow with n.
 
 **Ablations** (`figures/ablations.png`): with learned position embeddings the counting sorter fails
-immediately past the training range (4% at n = 11) while the min-tracker still generalises (96% at
+immediately past the training range (4% at n = 11) while the pointer-tracker still generalises (96% at
 n = 20); without the state bottleneck, "supervising" the histogram with a jointly trained probe leaves the
-model a min-tracker (the histogram becomes linearly decodable, R² ≈ 0.94, but is not used).
+model a pointer-tracker (the histogram becomes linearly decodable, R² ≈ 0.94, but is not used).
 
 ## Files
 

@@ -6,7 +6,7 @@ import slt_sorting_lib as L
 torch.set_num_threads(4)
 device = "cpu"
 models = {}
-for name in ["MIN", "HIST", "NONE"]:
+for name in ["PNTR", "HIST", "NONE"]:
     ck = torch.load(f"results/model_{name}.pt", map_location=device)
     m = L.SortingTransformer(L.Config(**ck["cfg"])); m.load_state_dict(ck["state"]); m.eval(); models[name] = m
 LENGTHS = [10, 16, 20, 24, 32, 40, 48, 64, 80, 100, 128]
@@ -17,11 +17,11 @@ for name, m in models.items():
         rows.append({"model": name, **r}); print(f"{name:5s} n={n:3d} exact={r['exact']:.3f} token={r['token']:.3f} teacher-forced token={r['tf_token']:.3f}", flush=True)
 df = pd.DataFrame(rows); df.to_csv("results/ood_lengths_extended.csv", index=False)
 
-# Where does MIN go wrong on long inputs?  Split teacher-forced errors by whether the correct next digit
+# Where does PNTR go wrong on long inputs?  Split teacher-forced errors by whether the correct next digit
 # repeats the previous one (a duplicate: the model must decide "is another copy left?") or advances.
 diag = []
 with torch.no_grad():
-    for name in ["MIN", "NONE"]:
+    for name in ["PNTR", "NONE"]:
         for n in [32, 64, 128]:
             g = torch.Generator(device=device).manual_seed(99)
             x = L.sample_inputs(256, n, device=device, generator=g)

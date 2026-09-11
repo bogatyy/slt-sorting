@@ -2,21 +2,21 @@
 
 **What the toy shows.**
 
-1. *Underspecification is real even for a 400k-parameter sorter.*  `MIN` and `HIST` have the same
+1. *Underspecification is real even for a 400k-parameter sorter.*  `PNTR` and `HIST` have the same
    architecture, saw the same data stream, and end at a sorting loss that is zero to within noise
    (about 1e-9 and 3e-7 nats per token) with 100% exact-match accuracy on the training distribution
-   (Section 5).  The moment the inputs get longer they diverge: `MIN` still sorts every 16-digit string and
+   (Section 5).  The moment the inputs get longer they diverge: `PNTR` still sorts every 16-digit string and
    87% of 24-digit strings, `HIST` is at 3% by n = 16 and 0% from n = 18 on (Section 6).  No evaluation
    on the training distribution would have told them apart — the situation *You Are What You Eat*
    calls the underspecification problem and Hoogland's essay the generalisation problem.
-2. *The difference is algorithmic.*  With a plausible-but-wrong prefix, `MIN` follows the prefix 99%
+2. *The difference is algorithmic.*  With a plausible-but-wrong prefix, `PNTR` follows the prefix 99%
    of the time and never ignores it; `HIST` follows it 1% of the time and ignores it 83% of the time
    (Section 8).  Each bottleneck holds its own algorithm's state and not the other's (Section 4).  The
-   attention maps show it directly: `MIN`'s heads do sharp content look-ups of particular input digits,
+   attention maps show it directly: `PNTR`'s heads do sharp content look-ups of particular input digits,
    `HIST`'s layer-0 heads attend uniformly over the inputs (that *is* the histogram) and its layer-1 heads
    read the separator (under no position embeddings, the fraction of attention that lands on the
    separator is how the model knows n and t).
-3. *Which algorithm fails, and why, follows from what its state has to represent.*  The min-tracker's
+3. *Which algorithm fails, and why, follows from what its state has to represent.*  The pointer-tracker's
    state is made of comparisons ("is digit d still available?"), the same computation at any length.  The
    counting sorter's state is made of absolute magnitudes — counts and an output index — whose training
    range is bounded, so every implementation has to extrapolate them.  Position embeddings only move the
@@ -29,8 +29,8 @@
    with R² ≈ 0.94 — while the model goes on sorting by tracking the minimum (59% follows-prefix, full
    length generalisation).  Representation is not use; a probe finding a variable is not evidence that the
    variable is on the computational path.
-5. *SGD's default is the min-tracker.*  The unsupervised `NONE` model behaves like `MIN` in every test
-   (72% follows-prefix, generalises to n = 20 at 83%), and its attention maps look like `MIN`'s.  Counting
+5. *SGD's default is the pointer-tracker.*  The unsupervised `NONE` model behaves like `PNTR` in every test
+   (72% follows-prefix, generalises to n = 20 at 83%), and its attention maps look like `PNTR`'s.  Counting
    sort is the algorithm that had to be scaffolded in.
 
 **What the LLC says.**  With one sampler setting for all models (nβ = 10, γ = 10⁴, ε = 10⁻⁵; chains agree
@@ -38,15 +38,15 @@ to within ~10%, and the nβ = 0 control collapses to ~0), three seeds per model 
 second setting (nβ = 100, ε = 10⁻⁶) as a check:
 
 * `NONE` is *far* more degenerate than either scaffolded solution — λ̂ ≈ 0.015–0.05 against ≈ 0.9–1.2
-  (`MIN`) and ≈ 0.6 (`HIST`) at the first setting, and ≈ 0.05 against ≈ 1.1–1.2 at the second; this holds
+  (`PNTR`) and ≈ 0.6 (`HIST`) at the first setting, and ≈ 0.05 against ≈ 1.1–1.2 at the second; this holds
   for every seed and both settings.  Whatever SGD finds on its own sits in a much flatter region than what
-  supervised-state training produces, even though its algorithm is `MIN`'s.  (Part of this is procedure:
-  `NONE` spent all of training being annealed by SGD on the sorting loss, `MIN`/`HIST` only the last 20% at
+  supervised-state training produces, even though its algorithm is `PNTR`'s.  (Part of this is procedure:
+  `NONE` spent all of training being annealed by SGD on the sorting loss, `PNTR`/`HIST` only the last 20% at
   a small learning rate; SGD's implicit drift towards flat regions is itself one of the phenomena the LLC
   was introduced to measure — Lau et al.'s Figure 1.)
 * Between the two solutions with equal loss the picture is *scale-dependent*.  At the first setting the
-  LLC separates them by a factor of two, consistently across seeds (`MIN` 1.18, 1.22, 0.91 vs `HIST` 0.62,
-  0.62, 0.61, chain spreads ≈ 0.02–0.10), and the weight-refined LLC says where: `MIN`'s stiffness is in its
+  LLC separates them by a factor of two, consistently across seeds (`PNTR` 1.18, 1.22, 0.91 vs `HIST` 0.62,
+  0.62, 0.61, chain spreads ≈ 0.02–0.10), and the weight-refined LLC says where: `PNTR`'s stiffness is in its
   **attention** weights (rLLC ≈ 0.8 of the total 1.2 — sharp content look-ups are fragile), `HIST`'s
   attention is almost free (≈ 0.03 — uniform averaging is robust) and its stiffness sits in the
   **state/read-out** thresholds (≈ 0.16).  At the colder setting, which counts directions of lower
@@ -56,8 +56,8 @@ second setting (nβ = 100, ε = 10⁻⁶) as a check:
 * And where it separates them, the *direction* is the opposite of "simpler generalises better": at the
   first setting the brittle counting sorter is the more degenerate of the two.  Read through Eq. (3) of
   *You Are What You Eat*, nΔℓ ≈ 16380 × 2.3·10⁻⁶ ≈ 0.04 nats is negligible next to Δλ·log n ≈ 0.6 × 9.7 ≈ 5
-  nats, so a posterior at that temperature would prefer `HIST` to `MIN` by roughly e⁵ (and `NONE` to both by
-  far more); at the second setting the odds between `MIN` and `HIST` are even.  The honest summary is that
+  nats, so a posterior at that temperature would prefer `HIST` to `PNTR` by roughly e⁵ (and `NONE` to both by
+  far more); at the second setting the odds between `PNTR` and `HIST` are even.  The honest summary is that
   the LLC ranks *implementations* at a chosen scale, and neither the ranking of the two scaffolded
   implementations nor its sign is something one should read a generalisation guarantee from.
 

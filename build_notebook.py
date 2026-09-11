@@ -39,7 +39,7 @@ CFG = Config(d_model=128, n_heads=4, n_layers=2, d_mlp=512, max_len=96, pos="non
 TRAIN = dict(steps=1500 if FAST else 6000, state_frac=0.8, batch=256, lr=1e-3, lr_joint=1e-4, wd=0.01,
              n_range=(4, 10), state_noise=0.1, seed=0, log_every=250)
 OOD_LENGTHS = [4, 6, 8, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32]
-MODES = {"MIN": "min", "HIST": "hist", "NONE": "none"}   # NONE = no auxiliary state (what does SGD find on its own?)
+MODES = {"PNTR": "pntr", "HIST": "hist", "NONE": "none"}   # NONE = no auxiliary state (what does SGD find on its own?)
 print("model parameters:", n_params(SortingTransformer(CFG)))
 '''))
 
@@ -175,12 +175,12 @@ for name, m in models.items():
     print(f"{name}: L_n(w*) = {data.full_loss(m, sequence_nll):.6f}   (mean per-sequence NLL on the LLC dataset)")
 '''))
 cells.append(code(r'''
-# Sweep on the MIN model.  Good traces rise above L(w*), level off, agree across chains, and have no spikes.
+# Sweep on the PNTR model.  Good traces rise above L(w*), level off, agree across chains, and have no spikes.
 SWEEP_STEPS, SWEEP_BURN = (300, 150) if FAST else (1500, 750)
 GRID = [(10.0, 1e-5, 1e4), (10.0, 1e-5, 1e3), (100.0, 1e-6, 1e4), (100.0, 1e-6, 1e3), (100.0, 1e-5, 1e4), (10.0, 1e-4, 1e4)] if not FAST else [(10.0, 1e-5, 1e4), (100.0, 1e-6, 1e4)]
 sweep = {}
 for nbeta, eps, gamma in GRID:
-    r = estimate_llc(models["MIN"], data, eps=eps, gamma=gamma, nbeta=nbeta, n_chains=2, n_steps=SWEEP_STEPS, burnin=SWEEP_BURN, batch=256, seed=1)
+    r = estimate_llc(models["PNTR"], data, eps=eps, gamma=gamma, nbeta=nbeta, n_chains=2, n_steps=SWEEP_STEPS, burnin=SWEEP_BURN, batch=256, seed=1)
     sweep[(nbeta, eps, gamma)] = r
     tr = r["traces"]; q = SWEEP_STEPS // 4
     print(f"nbeta={nbeta:5.0f} eps={eps:.0e} gamma={gamma:6.0f}: llc={r['llc']:9.2f} +- {r['llc_std']:.2f} | trace quarters: {np.nanmean(tr[:, :q]):.4f} {np.nanmean(tr[:, q:2*q]):.4f} {np.nanmean(tr[:, 2*q:3*q]):.4f} {np.nanmean(tr[:, 3*q:]):.4f}  max={np.nanmax(tr):.3f}  nan={np.isnan(tr).any()}")
@@ -223,7 +223,7 @@ cells.append(code(r'''
 fig, axes = plt.subplots(1, 2, figsize=(11, 3.6))
 for name, r in llc.items():
     for c in range(r["traces"].shape[0]):
-        axes[0].plot(r["traces"][c], lw=0.6, color={"MIN": "C0", "HIST": "C1", "NONE": "C2"}[name], alpha=0.8, label=name if c == 0 else None)
+        axes[0].plot(r["traces"][c], lw=0.6, color={"PNTR": "C0", "HIST": "C1", "NONE": "C2"}[name], alpha=0.8, label=name if c == 0 else None)
 axes[0].axvline(LLC_RUN["burnin"], color="k", ls=":", lw=0.8); axes[0].set_xlabel("SGLD step"); axes[0].set_ylabel("minibatch NLL / sequence"); axes[0].set_title("SGLD loss traces (all chains)"); axes[0].legend()
 names = list(llc); vals = [llc[k]["llc"] for k in names]; errs = [llc[k]["llc_std"] for k in names]
 axes[1].bar(names, vals, yerr=errs, capsize=4, color=["C0", "C1", "C2"][:len(names)]); axes[1].set_title("estimated local learning coefficient"); axes[1].set_ylabel("LLC")
@@ -247,7 +247,7 @@ for name, m in models.items():
 df_rllc = pd.DataFrame(rllc).T; df_rllc.to_csv("results/refined_llc.csv")
 fig, ax = plt.subplots(figsize=(7, 3.4))
 piv = df_rllc["rLLC"].unstack(0)
-piv.plot.bar(ax=ax, color=["C1", "C0", "C2"][:len(piv.columns)] if list(piv.columns) == ["HIST", "MIN", "NONE"] else None, rot=0)
+piv.plot.bar(ax=ax, color=[{"PNTR": "C0", "HIST": "C1", "NONE": "C2"}[c] for c in piv.columns], rot=0)
 ax.set_ylabel("weight-refined LLC"); ax.set_title("where does the complexity sit?")
 plt.tight_layout(); plt.savefig("figures/refined_llc.png"); plt.show()
 '''))
@@ -270,14 +270,14 @@ for (name, seed), m in all_models.items():
     seed_ood[(name, seed)] = oo
     seed_rows.append({"model": name, "seed": seed, "L_n(w*)": r_llc["L0"], "LLC": r_llc["llc"], "LLC chain std": r_llc["llc_std"],
                       **{f"exact@n={n}": next(x["exact"] for x in oo if x["n"] == n) for n in [10, 12, 14, 16, 20, 24, 32]},
-                      "follows prefix": pp["follows_prefix(MIN-like)"], "ignores prefix": pp["ignores_prefix(HIST-like)"]})
+                      "follows prefix": pp["follows_prefix(PNTR-like)"], "ignores prefix": pp["ignores_prefix(HIST-like)"]})
     print(f"{name:5s} seed {seed}: LLC = {r_llc['llc']:.3f} +- {r_llc['llc_std']:.3f}  exact@20 = {seed_rows[-1]['exact@n=20']:.3f}")
 df_seeds = pd.DataFrame(seed_rows).set_index(["model", "seed"]).sort_index(); df_seeds.to_csv("results/seeds.csv")
 df_seeds
 '''))
 cells.append(code(r'''
 fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
-colors = {"MIN": "C0", "HIST": "C1", "NONE": "C2"}
+colors = {"PNTR": "C0", "HIST": "C1", "NONE": "C2"}
 for (name, seed), oo in seed_ood.items():
     axes[0].plot([r["n"] for r in oo], [r["exact"] for r in oo], "o-", color=colors[name], alpha=0.6, lw=1, label=name if seed == TRAIN["seed"] else None)
 axes[0].axvspan(TRAIN["n_range"][0] - 0.5, TRAIN["n_range"][1] + 0.5, color="green", alpha=0.08)
@@ -293,7 +293,7 @@ cells.append(code(r'''
 # Ablation A: learned absolute position embeddings (zero-initialised) instead of no position embeddings.
 CFG_PE = Config(**{**CFG.__dict__, "pos": "learned"})
 models_pe = {}
-for name, mode in [("MIN", "min"), ("HIST", "hist")]:
+for name, mode in [("PNTR", "pntr"), ("HIST", "hist")]:
     print(f"===== training {name} with learned position embeddings =====")
     models_pe[name], _ = train_model(mode, CFG_PE, device=DEVICE, verbose=False, **TRAIN)
 ood_pe = {name: evaluate_lengths(m, OOD_LENGTHS, B=1024, device=DEVICE) for name, m in models_pe.items()}
@@ -306,7 +306,7 @@ cells.append(code(r'''
 # whole residual stream and the algorithm's state is only *encouraged* by a jointly trained linear probe.
 CFG_NB = Config(**{**CFG.__dict__, "bottleneck": False})
 models_nb = {}
-for name, mode in [("MIN", "min"), ("HIST", "hist")]:
+for name, mode in [("PNTR", "pntr"), ("HIST", "hist")]:
     print(f"===== training {name} without the bottleneck (joint probe loss) =====")
     models_nb[name], _ = train_model_joint(mode, CFG_NB, steps=TRAIN["steps"], batch=TRAIN["batch"], lr=TRAIN["lr"],
                                            n_range=TRAIN["n_range"], seed=TRAIN["seed"], device=DEVICE, verbose=False)
@@ -318,13 +318,13 @@ print(pd.DataFrame(ps_nb).T); print(pd.DataFrame(probes_nb).T)
 cells.append(code(r'''
 fig, axes = plt.subplots(1, 2, figsize=(11, 3.8), sharey=True)
 for name, rs in ood.items():
-    axes[0].plot([r["n"] for r in rs], [r["exact"] for r in rs], "o-", color={"MIN": "C0", "HIST": "C1", "NONE": "C2"}[name], label=f"{name} (main run, no position embeddings)")
+    axes[0].plot([r["n"] for r in rs], [r["exact"] for r in rs], "o-", color={"PNTR": "C0", "HIST": "C1", "NONE": "C2"}[name], label=f"{name} (main run, no position embeddings)")
 for name, rs in ood_pe.items():
-    axes[0].plot([r["n"] for r in rs], [r["exact"] for r in rs], "s--", color={"MIN": "C0", "HIST": "C1"}[name], label=f"{name} (learned position embeddings)")
+    axes[0].plot([r["n"] for r in rs], [r["exact"] for r in rs], "s--", color={"PNTR": "C0", "HIST": "C1"}[name], label=f"{name} (learned position embeddings)")
 for name, rs in ood_nb.items():
-    axes[1].plot([r["n"] for r in rs], [r["exact"] for r in rs], "^:", color={"MIN": "C0", "HIST": "C1"}[name], label=f"{name} (no bottleneck, joint probe loss)")
+    axes[1].plot([r["n"] for r in rs], [r["exact"] for r in rs], "^:", color={"PNTR": "C0", "HIST": "C1"}[name], label=f"{name} (no bottleneck, joint probe loss)")
 for name, rs in ood.items():
-    axes[1].plot([r["n"] for r in rs], [r["exact"] for r in rs], "o-", color={"MIN": "C0", "HIST": "C1", "NONE": "C2"}[name], alpha=0.35, label=f"{name} (main run)")
+    axes[1].plot([r["n"] for r in rs], [r["exact"] for r in rs], "o-", color={"PNTR": "C0", "HIST": "C1", "NONE": "C2"}[name], alpha=0.35, label=f"{name} (main run)")
 for ax, t in zip(axes, ["A: position embeddings", "B: bottleneck vs. no bottleneck"]):
     ax.axvspan(TRAIN["n_range"][0] - 0.5, TRAIN["n_range"][1] + 0.5, color="green", alpha=0.08)
     ax.set_xlabel("input length n"); ax.set_title(t); ax.legend(fontsize=7)

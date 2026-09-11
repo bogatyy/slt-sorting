@@ -18,10 +18,10 @@ for n in names:
     print(f"| {n} | " + " | ".join(f"{r['exact']:.2f}" for r in s["ood_length"][n]) + " |")
 print("\nprefix sensitivity:")
 for n in names:
-    p = s["prefix_sensitivity"][n]; print(f"  {n}: follows {p['follows_prefix(MIN-like)']:.2f}  ignores {p['ignores_prefix(HIST-like)']:.2f}  other {p['other']:.2f}")
+    p = s["prefix_sensitivity"][n]; print(f"  {n}: follows {p['follows_prefix(PNTR-like)']:.2f}  ignores {p['ignores_prefix(HIST-like)']:.2f}  other {p['other']:.2f}")
 print("\nstate fidelity:")
 for n in names:
-    f = s["state_fidelity"][n]; print(f"  {n}: mse vs MIN {f['mse_vs_MIN_state']:.3f} (bits {f['avail_bit_acc']:.3f}) | mse vs HIST {f['mse_vs_HIST_state']:.3f} (counts {f['count_acc']:.3f})")
+    f = s["state_fidelity"][n]; print(f"  {n}: mse vs PNTR {f['mse_vs_MIN_state']:.3f} (bits {f['avail_bit_acc']:.3f}) | mse vs HIST {f['mse_vs_HIST_state']:.3f} (counts {f['count_acc']:.3f})")
 print("\nprobes (post hoc):")
 for k, v in s["probes"].items():
     print(f"  {k}: hist R2 {v['hist_R2']:.3f} idx R2 {v['idx_R2']:.3f} avail bits {v['avail_bit_acc']:.3f}")
