@@ -1,6 +1,6 @@
 {
  "train": {
-  "MIN": {
+  "PNTR": {
    "ce_per_token": 1.252774233309606e-09,
    "nll_per_sequence": 5.421599463024356e-09,
    "seq_acc_teacher_forced": 1.0
@@ -17,7 +17,7 @@
   }
  },
  "ood_length": {
-  "MIN": [
+  "PNTR": [
    {
     "n": 4,
     "exact": 1.0,
@@ -319,33 +319,33 @@
   ]
  },
  "prefix_sensitivity": {
-  "MIN": {
-   "follows_prefix(MIN-like)": 0.9948275685310364,
+  "PNTR": {
+   "follows_prefix(PNTR-like)": 0.9948275685310364,
    "ignores_prefix(HIST-like)": 0.004597701132297516,
    "other": 0.0005747126415371895,
    "n_cases": 1740
   },
   "HIST": {
-   "follows_prefix(MIN-like)": 0.01206896547228098,
+   "follows_prefix(PNTR-like)": 0.01206896547228098,
    "ignores_prefix(HIST-like)": 0.8310344815254211,
    "other": 0.15689654648303986,
    "n_cases": 1740
   },
   "NONE": {
-   "follows_prefix(MIN-like)": 0.7206896543502808,
+   "follows_prefix(PNTR-like)": 0.7206896543502808,
    "ignores_prefix(HIST-like)": 0.21149425208568573,
    "other": 0.06781609356403351,
    "n_cases": 1740
   }
  },
  "probes": {
-  "MIN/after layer 1": {
+  "PNTR/after layer 1": {
    "hist_R2": 0.7116202116012573,
    "hist_count_acc": 0.7887834310531616,
    "idx_R2": 0.8384345769882202,
    "avail_bit_acc": 0.9389747977256775
   },
-  "MIN/after layer 2": {
+  "PNTR/after layer 2": {
    "hist_R2": 0.7200822830200195,
    "hist_count_acc": 0.7924505472183228,
    "idx_R2": 0.8319823741912842,
@@ -377,7 +377,7 @@
   }
  },
  "llc": {
-  "MIN": {
+  "PNTR": {
    "llc": 1.1779624488740088,
    "llc_std": 0.09816915851183483,
    "per_chain": [
@@ -433,7 +433,7 @@
   }
  },
  "llc_setting2": {
-  "MIN": {
+  "PNTR": {
    "llc": 1.1073668734771163,
    "llc_std": 0.031682769531731055,
    "per_chain": [
@@ -484,7 +484,7 @@
  },
  "seeds": [
   {
-   "model": "MIN",
+   "model": "PNTR",
    "seed": 0,
    "L_n(w*)": 3.369590067057331e-09,
    "LLC": 1.1779624488740088,
@@ -532,7 +532,7 @@
    "ignores prefix": 0.21149425208568573
   },
   {
-   "model": "MIN",
+   "model": "PNTR",
    "seed": 1,
    "L_n(w*)": 1.1003910987520598e-08,
    "LLC": 1.2217163614519841,
@@ -580,7 +580,7 @@
    "ignores prefix": 0.1867816150188446
   },
   {
-   "model": "MIN",
+   "model": "PNTR",
    "seed": 2,
    "L_n(w*)": 8.696891020313093e-09,
    "LLC": 0.9118136750725254,
@@ -629,7 +629,7 @@
   }
  ],
  "state_fidelity": {
-  "MIN": {
+  "PNTR": {
    "mse_vs_MIN_state": 0.012191181204148702,
    "avail_bit_acc": 1.0,
    "mse_vs_HIST_state": 16.692691734858922,
@@ -650,35 +650,35 @@
  },
  "ood_duplicates": [
   {
-   "model": "MIN",
+   "model": "PNTR",
    "alphabet": "{0..9}",
    "max count (typical)": "",
    "exact": 1.0,
    "token": 1.0
   },
   {
-   "model": "MIN",
+   "model": "PNTR",
    "alphabet": "{0..4}",
    "max count (typical)": "",
    "exact": 1.0,
    "token": 1.0
   },
   {
-   "model": "MIN",
+   "model": "PNTR",
    "alphabet": "{0..2}",
    "max count (typical)": "",
    "exact": 1.0,
    "token": 1.0
   },
   {
-   "model": "MIN",
+   "model": "PNTR",
    "alphabet": "{0..1}",
    "max count (typical)": "",
    "exact": 1.0,
    "token": 1.0
   },
   {
-   "model": "MIN",
+   "model": "PNTR",
    "alphabet": "{0..0}",
    "max count (typical)": "",
    "exact": 1.0,
@@ -756,22 +756,22 @@
   }
  ],
  "refined_llc": {
-  "MIN/embeddings": {
+  "PNTR/embeddings": {
    "rLLC": 7.385102000940846e-09,
    "chain std": 1.2868231193141754e-09,
    "#params": 2688
   },
-  "MIN/attention": {
+  "PNTR/attention": {
    "rLLC": 0.8407310113869,
    "chain std": 0.061501634447788854,
    "#params": 132096
   },
-  "MIN/MLPs": {
+  "PNTR/MLPs": {
    "rLLC": 1.7478165716018217e-05,
    "chain std": 1.4226513438536708e-05,
    "#params": 263424
   },
-  "MIN/state + read-out": {
+  "PNTR/state + read-out": {
    "rLLC": 0.18241647575669798,
    "chain std": 0.03551651656581266,
    "#params": 6997
@@ -819,7 +819,7 @@
  },
  "ablation_pe": {
   "ood": {
-   "MIN": [
+   "PNTR": [
     {
      "n": 4,
      "exact": 1.0,
@@ -1021,21 +1021,21 @@
    ]
   },
   "prefix": {
-   "MIN": {
-    "follows_prefix(MIN-like)": 0.9994252920150757,
+   "PNTR": {
+    "follows_prefix(PNTR-like)": 0.9994252920150757,
     "ignores_prefix(HIST-like)": 0.0005747126415371895,
     "other": 0.0,
     "n_cases": 1740
    },
    "HIST": {
-    "follows_prefix(MIN-like)": 0.014367816038429737,
+    "follows_prefix(PNTR-like)": 0.014367816038429737,
     "ignores_prefix(HIST-like)": 0.8183907866477966,
     "other": 0.16724137961864471,
     "n_cases": 1740
    }
   },
   "fidelity": {
-   "MIN": {
+   "PNTR": {
     "mse_vs_MIN_state": 0.008641258946486883,
     "avail_bit_acc": 1.0,
     "mse_vs_HIST_state": 16.96162482670375,
@@ -1051,7 +1051,7 @@
  },
  "ablation_no_bottleneck": {
   "ood": {
-   "MIN": [
+   "PNTR": [
     {
      "n": 4,
      "exact": 1.0,
@@ -1253,21 +1253,21 @@
    ]
   },
   "prefix": {
-   "MIN": {
-    "follows_prefix(MIN-like)": 0.7051724195480347,
+   "PNTR": {
+    "follows_prefix(PNTR-like)": 0.7051724195480347,
     "ignores_prefix(HIST-like)": 0.2586206793785095,
     "other": 0.03620689734816551,
     "n_cases": 1740
    },
    "HIST": {
-    "follows_prefix(MIN-like)": 0.5919539928436279,
+    "follows_prefix(PNTR-like)": 0.5919539928436279,
     "ignores_prefix(HIST-like)": 0.3333333432674408,
     "other": 0.07471264153718948,
     "n_cases": 1740
    }
   },
   "probes": {
-   "MIN": {
+   "PNTR": {
     "hist_R2": 0.8356289863586426,
     "hist_count_acc": 0.8767179250717163,
     "idx_R2": 0.8872088193893433,
