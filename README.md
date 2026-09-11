@@ -20,8 +20,6 @@ handle on telling them apart *before* the distribution shift.
 
 `NONE` is a third model trained with no state supervision at all (what SGD finds on its own).
 
-*Note: the algorithm previously labelled `MIN` is now called `PNTR`; the figure images in this version were rendered before the rename, so `MIN` in a figure legend means `PNTR`.*
-
 ## Results (committed run `full4`: Hugging Face Jobs, one T4, 37 min of cell time; `results/summary.json`, figures in `figures/`)
 
 **Same training loss, 100% in-distribution accuracy** (population loss on fresh samples, teacher forced):

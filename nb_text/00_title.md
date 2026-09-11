@@ -20,5 +20,3 @@ Between the two equal-loss solutions, geometry separates them by a factor of two
 probes the sharpest directions (consistently across seeds; the weight-refined LLC puts the pointer-tracker's
 stiffness in its attention look-ups and the counting sorter's in its read-out thresholds) — with the
 brittle counting sorter as the *more* degenerate one — and does not separate them at a colder setting.
-
-*Note: the algorithm previously labelled `MIN` is now called `PNTR`; figure images in this version were rendered before the rename, so `MIN` in a figure legend means `PNTR`.*

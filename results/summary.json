@@ -630,19 +630,19 @@
  ],
  "state_fidelity": {
   "PNTR": {
-   "mse_vs_MIN_state": 0.012191181204148702,
+   "mse_vs_PNTR_state": 0.012191181204148702,
    "avail_bit_acc": 1.0,
    "mse_vs_HIST_state": 16.692691734858922,
    "count_acc": 0.10199330800345965
   },
   "HIST": {
-   "mse_vs_MIN_state": 22.12106500353132,
+   "mse_vs_PNTR_state": 22.12106500353132,
    "avail_bit_acc": 0.3953764906951359,
    "mse_vs_HIST_state": 0.42417459189891815,
    "count_acc": 0.5938989349773952
   },
   "NONE": {
-   "mse_vs_MIN_state": 26.849625723702566,
+   "mse_vs_PNTR_state": 26.849625723702566,
    "avail_bit_acc": 0.4501074382237026,
    "mse_vs_HIST_state": 46.31636265345982,
    "count_acc": 0.07221939893705505
@@ -1036,13 +1036,13 @@
   },
   "fidelity": {
    "PNTR": {
-    "mse_vs_MIN_state": 0.008641258946486883,
+    "mse_vs_PNTR_state": 0.008641258946486883,
     "avail_bit_acc": 1.0,
     "mse_vs_HIST_state": 16.96162482670375,
     "count_acc": 0.10199330800345965
    },
    "HIST": {
-    "mse_vs_MIN_state": 19.010930129459926,
+    "mse_vs_PNTR_state": 19.010930129459926,
     "avail_bit_acc": 0.3953764906951359,
     "mse_vs_HIST_state": 0.09886511734553746,
     "count_acc": 0.8721613798822675
