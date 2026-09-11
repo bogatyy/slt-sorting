@@ -12,7 +12,7 @@ handle on telling them apart *before* the distribution shift.
 
 **Two algorithms, elicited by supervising an explicit 11-number "state" in the same architecture:**
 
-| | `PNTR` — track the current minimum | `HIST` — counting sort |
+| | `PNTR` — a pointer to the current minimum | `HIST` — counting sort |
 |---|---|---|
 | state | which digits are still available (10 bits) + the current value `v` | cumulative counts `C(d)` (10 numbers) + the output index `t` |
 | decision | smallest available digit ≥ `v` | the digit `d` with `C(d-1) ≤ t < C(d)` |
